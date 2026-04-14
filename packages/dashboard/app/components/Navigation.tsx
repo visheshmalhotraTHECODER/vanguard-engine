@@ -72,14 +72,35 @@ export function Sidebar() {
   );
 }
 
+import { signOut, useSession } from "next-auth/react";
+
 export function Topbar({ title }: { title: string }) {
+  const { data: session } = useSession();
+
   return (
-    <div className="h-14 flex items-center px-6 border-b border-white/[0.06]"
+    <div className="h-14 flex items-center justify-between px-6 border-b border-white/[0.06]"
       style={{ background: "rgba(8,8,15,0.8)", backdropFilter: "blur(12px)" }}>
       <div className="flex items-center gap-2 text-slate-500">
         <span className="text-slate-700">/</span>
         <span className="text-sm font-medium text-slate-300">{title}</span>
       </div>
+      
+      {session?.user && (
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2.5">
+            {session.user.image && (
+              <img src={session.user.image} alt="Avatar" className="w-6 h-6 rounded-full border border-white/10" />
+            )}
+            <span className="text-xs font-medium text-slate-300">{session.user.name}</span>
+          </div>
+          <button
+            onClick={() => signOut()}
+            className="text-[10px] uppercase tracking-wider font-bold text-slate-500 hover:text-red-400 transition-colors"
+          >
+            Sign Out
+          </button>
+        </div>
+      )}
     </div>
   );
 }

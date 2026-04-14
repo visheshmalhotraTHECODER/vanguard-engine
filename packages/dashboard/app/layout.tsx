@@ -9,11 +9,15 @@ export const metadata: Metadata = {
   description: "Self-hosted cloud deployment engine.",
 };
 
+import { Providers } from "./providers";
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
       <body className={`${inter.className} page-bg min-h-screen`}>
-        {children}
+        <Providers>
+          {children}
+        </Providers>
       </body>
     </html>
   );
