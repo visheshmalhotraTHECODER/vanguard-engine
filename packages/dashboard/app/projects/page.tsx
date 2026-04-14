@@ -190,7 +190,7 @@ export default function ProjectsPage() {
               </motion.div>
             )}
           </AnimatePresence>
-        </div>
+        </main>
       </div>
     </div>
   );

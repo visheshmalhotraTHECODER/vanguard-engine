@@ -159,7 +159,7 @@ export default function DeploymentPage({ params }: Props) {
               <LiveTerminal deploymentId={id} />
             </div>
           </motion.div>
-        </div>
+        </main>
       </div>
     </div>
   );
