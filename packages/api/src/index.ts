@@ -7,6 +7,7 @@ import { Server as SocketIOServer } from 'socket.io';
 import { Redis } from 'ioredis';
 import projectRoutes from './routes/projects.js';
 import deploymentRoutes from './routes/deployments.js';
+import webhookRoutes from './routes/webhooks.js';
 
 dotenv.config();
 
@@ -42,6 +43,7 @@ app.get('/health', (_req, res) => {
 
 app.use('/api/projects', projectRoutes);
 app.use('/api/deployments', deploymentRoutes);
+app.use('/api/webhooks', webhookRoutes);
 
 // ─── 404 Handler ─────────────────────────────────────────────
 app.use((_req, res) => {
