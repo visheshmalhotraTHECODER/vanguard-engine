@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { prisma } from '../lib/prisma.js';
+import { queueBuildJob } from '../lib/queue.js';
 
 const router = Router();
 
@@ -28,7 +29,23 @@ router.post('/', async (req: Request, res: Response) => {
       return res.status(400).json({ success: false, error: 'projectId is required' });
     }
 
-    // Create the deployment record
+    // Fetch project to get repoUrl
+    const project = await prisma.project.findUnique({
+      where: { id: projectId },
+      include: {
+        deployments: {
+          where: { status: 'SUCCESS' },
+          orderBy: { createdAt: 'desc' },
+          take: 1,
+        },
+      },
+    });
+
+    if (!project) {
+      return res.status(404).json({ success: false, error: 'Project not found' });
+    }
+
+    // Create deployment record in DB
     const deployment = await prisma.deployment.create({
       data: {
         projectId,
@@ -38,15 +55,32 @@ router.post('/', async (req: Request, res: Response) => {
       },
     });
 
-    // TODO: Queue build job in Redis (next step)
-    // await buildQueue.add('build', { deploymentId: deployment.id });
+    // Get previous running container ID for zero-downtime swap
+    const previousDeploy = project.deployments[0];
+    const previousContainerId = previousDeploy?.containerId ?? undefined;
+
+    // Queue the build job — build-service picks this up
+    await queueBuildJob({
+      deploymentId: deployment.id,
+      projectId: project.id,
+      repoUrl: project.repoUrl,
+      previousContainerId: previousContainerId || undefined,
+    });
+
+    // Mark as BUILDING
+    await prisma.deployment.update({
+      where: { id: deployment.id },
+      data: { status: 'BUILDING', startedAt: new Date() },
+    });
 
     res.status(201).json({
       success: true,
-      message: 'Deployment queued successfully',
+      message: 'Deployment queued. Connect to WebSocket for live logs.',
       data: deployment,
+      wsChannel: `logs:${deployment.id}`,
     });
-  } catch (error) {
+  } catch (error: any) {
+    console.error('[Deployments] Error:', error);
     res.status(500).json({ success: false, error: 'Failed to trigger deployment' });
   }
 });
