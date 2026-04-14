@@ -6,6 +6,9 @@
   ],
   "scripts": {
     "dev:api": "npm run dev --workspace=api",
+    "dev:build-service": "npm run dev --workspace=build-service",
+    "dev:proxy": "npm run dev --workspace=proxy",
+    "dev:dashboard": "npm run dev --workspace=dashboard",
     "install:all": "npm install"
   }
 }
