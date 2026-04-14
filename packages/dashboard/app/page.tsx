@@ -173,7 +173,7 @@ export default function DashboardPage() {
           </motion.div>
 
           {/* ── Stats ────────────────────────────────── */}
-          <div className="grid grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
             {STATS.map((stat, i) => <StatCard key={stat.label} stat={stat} index={i} />)}
           </div>
 
