@@ -1,0 +1,70 @@
+// This is your Prisma schema file
+// Learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================
+// USERS
+// ============================================================
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  avatarUrl String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  projects Project[]
+}
+
+// ============================================================
+// PROJECTS
+// A Project is a GitHub repo that the user wants to deploy
+// ============================================================
+model Project {
+  id          String   @id @default(cuid())
+  name        String
+  repoUrl     String   // e.g. https://github.com/user/myapp
+  subdomain   String   @unique // e.g. "myapp" → myapp.vanguard.dev
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  userId      String
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  deployments Deployment[]
+}
+
+// ============================================================
+// DEPLOYMENTS
+// Each push triggers a new Deployment record
+// ============================================================
+model Deployment {
+  id          String           @id @default(cuid())
+  commitHash  String?          // e.g. "a1b2c3d"
+  commitMsg   String?          // e.g. "feat: add login flow"
+  status      DeploymentStatus @default(QUEUED)
+  logs        String?          // Stored build logs (after completion)
+  containerId String?          // Docker container ID (when running)
+  containerPort Int?           // Port the container is exposed on
+  startedAt   DateTime?
+  finishedAt  DateTime?
+  createdAt   DateTime         @default(now())
+
+  projectId   String
+  project     Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+}
+
+enum DeploymentStatus {
+  QUEUED
+  BUILDING
+  SUCCESS
+  FAILED
+  CANCELLED
+}

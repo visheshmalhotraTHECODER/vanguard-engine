@@ -1,0 +1,11 @@
+{
+  "name": "vanguard-root",
+  "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:api": "npm run dev --workspace=api",
+    "install:all": "npm install"
+  }
+}
