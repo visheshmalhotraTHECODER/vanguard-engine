@@ -25,8 +25,14 @@ export function LiveTerminal({
   const [connected, setConnected] = useState(false);
   const [finished, setFinished] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const socketRef = useRef<Socket | null>(null);
+
+  // Prevent hydration errors with time rendering
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     const socket = io(apiUrl, { transports: ["websocket"] });
@@ -53,7 +59,6 @@ export function LiveTerminal({
     };
   }, [deploymentId, apiUrl]);
 
-  // Auto-scroll to bottom
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [logs]);
@@ -71,118 +76,126 @@ export function LiveTerminal({
     if (message.includes("✅") || message.includes("complete") || message.includes("success"))
       return "text-emerald-400";
     if (message.includes("⚠️") || message.includes("warning") || message.includes("WARN"))
-      return "text-yellow-400";
-    if (message.includes("[Vanguard]"))
-      return "text-blue-300";
+      return "text-amber-400";
+    if (message.includes("[Vanguard]") || message.includes("VND"))
+      return "text-violet-400 font-semibold";
     if (message.includes("Step ") || message.startsWith("→"))
-      return "text-violet-300";
+      return "text-blue-400";
     return "text-slate-300";
   };
 
+  if (!mounted) {
+    return <div className="h-[460px] bg-[#05050A]" />; // Placeholder during SSR
+  }
+
   return (
-    <div className="glass border border-white/5 rounded-xl overflow-hidden">
+    <div className="flex flex-col h-[460px] terminal-bg overflow-hidden relative">
       {/* Terminal Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-white/5 bg-black/20">
-        <div className="flex items-center gap-3">
-          {/* macOS-style dots */}
+      <div className="flex flex-none items-center justify-between px-4 py-2.5 border-b border-white/[0.08]"
+           style={{ background: "rgba(255,255,255,0.02)" }}>
+        <div className="flex items-center gap-4">
           <div className="flex gap-1.5">
-            <div className="w-3 h-3 rounded-full bg-red-500/70" />
-            <div className="w-3 h-3 rounded-full bg-yellow-500/70" />
-            <div className="w-3 h-3 rounded-full bg-emerald-500/70" />
+            <div className="w-3 h-3 rounded-full bg-red-500/80 border border-red-500/50" />
+            <div className="w-3 h-3 rounded-full bg-amber-500/80 border border-amber-500/50" />
+            <div className="w-3 h-3 rounded-full bg-emerald-500/80 border border-emerald-500/50" />
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 px-2 py-1 bg-white/[0.03] rounded-md border border-white/[0.05]">
             <Terminal className="w-3 h-3 text-slate-500" />
-            <span className="text-xs text-slate-500 font-mono">
-              build/{deploymentId.slice(0, 8)}
+            <span className="text-[10px] text-slate-400 mono">
+              vanguard-cli ~ {deploymentId.slice(0, 8)}
             </span>
           </div>
         </div>
-        <div className="flex items-center gap-3">
-          {/* Connection status */}
+        <div className="flex items-center gap-4">
           <div className="flex items-center gap-1.5">
             {connected && !finished ? (
               <>
-                <Wifi className="w-3 h-3 text-emerald-400" />
-                <span className="text-[10px] text-emerald-400 font-medium">Live</span>
+                <Wifi className="w-3.5 h-3.5 text-emerald-400 pulse" />
+                <span className="text-[10px] text-emerald-400 font-semibold uppercase tracking-wider">Streaming</span>
               </>
             ) : finished ? (
               <>
-                <CheckCheck className="w-3 h-3 text-blue-400" />
-                <span className="text-[10px] text-blue-400 font-medium">Complete</span>
+                <CheckCheck className="w-3.5 h-3.5 text-blue-400" />
+                <span className="text-[10px] text-blue-400 font-semibold uppercase tracking-wider">Finished</span>
               </>
             ) : (
               <>
-                <WifiOff className="w-3 h-3 text-slate-500" />
-                <span className="text-[10px] text-slate-500 font-medium">Connecting...</span>
+                <WifiOff className="w-3.5 h-3.5 text-slate-500" />
+                <span className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider">Connecting</span>
               </>
             )}
           </div>
-          {/* Copy button */}
-          <button
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
             onClick={handleCopy}
-            className="flex items-center gap-1 text-[10px] text-slate-500 hover:text-slate-300 transition-colors"
+            className="flex items-center gap-1.5 px-2 py-1 rounded bg-white/[0.05] hover:bg-white/[0.1] transition-colors text-[10px] font-semibold tracking-wide text-slate-400 hover:text-slate-200 uppercase"
           >
             {copied ? (
               <CheckCheck className="w-3 h-3 text-emerald-400" />
             ) : (
               <Copy className="w-3 h-3" />
             )}
-            {copied ? "Copied!" : "Copy"}
-          </button>
+            {copied ? <span className="text-emerald-400">Copied</span> : "Copy"}
+          </motion.button>
         </div>
       </div>
 
       {/* Terminal Body */}
-      <div className="terminal bg-[#050810] h-[420px] overflow-y-auto p-4 space-y-0.5">
+      <div className="flex-1 overflow-y-auto p-4 space-y-0.5 mono">
         <AnimatePresence initial={false}>
           {logs.length === 0 && (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="flex items-center gap-2 text-slate-600"
+              className="flex items-center gap-3 text-slate-600"
             >
-              <span className="text-blue-500">$</span>
-              <span className="shimmer w-48 h-3 rounded" />
+              <span className="text-violet-500 font-bold">❯</span>
+              <span className="shimmer w-48 h-3.5 rounded" />
             </motion.div>
           )}
 
-          {logs.map((log, i) => (
-            <motion.div
-              key={i}
-              initial={{ opacity: 0, x: -4 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.1 }}
-              className="flex gap-3 leading-relaxed"
-            >
-              <span className="text-slate-700 text-[10px] flex-shrink-0 mt-0.5 w-16 text-right">
-                {new Date(log.timestamp).toLocaleTimeString("en-US", {
-                  hour12: false,
-                  hour: "2-digit",
-                  minute: "2-digit",
-                  second: "2-digit",
-                })}
-              </span>
-              <span className={clsx("flex-1 break-all", getLogColor(log.message))}>
-                {log.message}
-              </span>
-            </motion.div>
-          ))}
+          {logs.map((log, i) => {
+            // Render nice time
+            const d = new Date(log.timestamp);
+            const timeStr = `${d.getHours().toString().padStart(2,'0')}:${d.getMinutes().toString().padStart(2,'0')}:${d.getSeconds().toString().padStart(2,'0')}`;
 
-          {/* Blinking cursor when active */}
+            return (
+              <motion.div
+                key={i}
+                initial={{ opacity: 0, x: -4 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.15 }}
+                className="flex gap-4 group hover:bg-white/[0.02] -mx-2 px-2 py-0.5 rounded"
+              >
+                <div className="flex items-center gap-3 w-[100px] flex-shrink-0 opacity-50 group-hover:opacity-100 transition-opacity">
+                   <span className="text-slate-600">│</span>
+                   <span className="text-slate-500 text-[10px]">{timeStr}</span>
+                </div>
+                <span className={clsx("flex-1 whitespace-pre-wrap break-all", getLogColor(log.message))}>
+                  {log.message}
+                </span>
+              </motion.div>
+            );
+          })}
+
           {connected && !finished && (
             <motion.div
               key="cursor"
-              animate={{ opacity: [1, 0, 1] }}
-              transition={{ duration: 1, repeat: Infinity }}
-              className="flex gap-3"
+              className="flex gap-4 -mx-2 px-2"
             >
-              <span className="w-16" />
-              <span className="text-blue-400">█</span>
+              <div className="w-[100px] flex-shrink-0" />
+              <motion.span
+                animate={{ opacity: [1, 0, 1] }}
+                transition={{ duration: 1.2, repeat: Infinity }}
+                className="text-violet-500 inline-block w-2.5 h-3.5 bg-violet-500 mt-1"
+              />
             </motion.div>
           )}
         </AnimatePresence>
-        <div ref={bottomRef} />
+        <div ref={bottomRef} className="h-4" />
       </div>
+
     </div>
   );
 }
