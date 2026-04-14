@@ -8,6 +8,19 @@ import dotenv from 'dotenv';
 import { buildImage, runContainer, teardownContainer } from './docker.js';
 import { publishLog, publishDone } from './publisher.js';
 
+// Separate Redis client for proxy route registration
+const routeRegistry = new Redis(process.env.REDIS_URL || 'redis://localhost:6379', {
+  maxRetriesPerRequest: null,
+});
+
+/**
+ * Registers subdomain → port in Redis so the Proxy knows where to route.
+ * Key: proxy:subdomain:{subdomain} = port
+ */
+async function registerProxyRoute(subdomain: string, port: number): Promise<void> {
+  await routeRegistry.set(`proxy:subdomain:${subdomain}`, String(port));
+}
+
 dotenv.config();
 
 // ─── Redis Connection ────────────────────────────────────────
@@ -20,6 +33,7 @@ interface BuildJobData {
   deploymentId: string;
   projectId: string;
   repoUrl: string;
+  subdomain: string;            // e.g. "myapp" → myapp.vanguard.dev
   previousContainerId?: string; // for zero-downtime swap
 }
 
@@ -27,7 +41,7 @@ interface BuildJobData {
 const worker = new Worker<BuildJobData>(
   'build-queue',
   async (job: Job<BuildJobData>) => {
-    const { deploymentId, repoUrl, previousContainerId } = job.data;
+    const { deploymentId, repoUrl, subdomain, previousContainerId } = job.data;
 
     // Convenience wrapper — publishes and also logs to console
     const log = (msg: string) => {
@@ -100,7 +114,15 @@ CMD ["node", "index.js"]
       throw new Error(runResult.error);
     }
 
-    // ── Step 6: Cleanup temp clone ───────────────────────────
+    // ── Step 6: Register Route in Proxy ──────────────────────
+    // This is the magic moment — subdomain is now live!
+    if (runResult.port) {
+      await registerProxyRoute(subdomain, runResult.port);
+      log(`🌐 Route registered: ${subdomain}.vanguard.dev → :${runResult.port}`);
+      log(`🔗 Your app is live at: http://${subdomain}.localhost:8080`);
+    }
+
+    // ── Step 7: Cleanup temp clone ───────────────────────────
     try {
       fs.rmSync(cloneDir, { recursive: true, force: true });
       log(`🧹 Build artifacts cleaned up.`);
@@ -108,7 +130,7 @@ CMD ["node", "index.js"]
       // Non-fatal
     }
 
-    // ── Step 7: Signal completion ─────────────────────────────
+    // ── Step 8: Signal completion ─────────────────────────────
     publishDone(deploymentId, true);
 
     // Return result for job record

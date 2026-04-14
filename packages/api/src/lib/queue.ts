@@ -12,6 +12,7 @@ export interface BuildJobPayload {
   deploymentId: string;
   projectId: string;
   repoUrl: string;
+  subdomain: string;            // needed for proxy route registration
   previousContainerId?: string;
 }
 

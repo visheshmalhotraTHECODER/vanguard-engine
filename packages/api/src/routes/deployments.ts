@@ -64,6 +64,7 @@ router.post('/', async (req: Request, res: Response) => {
       deploymentId: deployment.id,
       projectId: project.id,
       repoUrl: project.repoUrl,
+      subdomain: project.subdomain,
       previousContainerId: previousContainerId || undefined,
     });
 
